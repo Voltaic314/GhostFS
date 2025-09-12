@@ -3,16 +3,24 @@ package tables
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Voltaic314/GhostFS/db"
 )
 
 // TableManager handles table operations for single/multi table modes
 type TableManager struct {
-	config *TestConfig
+	config       *TestConfig
+	tableIDMap   map[string]string // table_id -> table_name cache
+	tableNameMap map[string]string // table_name -> table_id cache
 }
 
 // NewTableManager creates a new table manager
 func NewTableManager(config *TestConfig) *TableManager {
-	return &TableManager{config: config}
+	return &TableManager{
+		config:       config,
+		tableIDMap:   make(map[string]string),
+		tableNameMap: make(map[string]string),
+	}
 }
 
 // IsMultiTableMode returns true if we have secondary tables
@@ -28,20 +36,6 @@ func (tm *TableManager) GetPrimaryTableName() string {
 // GetPrimaryConfig returns the primary table configuration
 func (tm *TableManager) GetPrimaryConfig() PrimaryTableConfig {
 	return tm.config.Database.Tables.Primary
-}
-
-// GetSecondaryTableNames returns all secondary table names
-func (tm *TableManager) GetSecondaryTableNames() []string {
-	var names []string
-	for _, config := range tm.config.Database.Tables.Secondary {
-		names = append(names, config.TableName)
-	}
-	return names
-}
-
-// GetSecondaryConfigs returns all secondary table configurations
-func (tm *TableManager) GetSecondaryConfigs() map[string]SecondaryTableConfig {
-	return tm.config.Database.Tables.Secondary
 }
 
 // GetTableNames returns all table names that should be created
@@ -66,7 +60,7 @@ func (tm *TableManager) GetTableForNode(nodeID string) string {
 	}
 
 	// Get all secondary tables
-	secondaryConfigs := tm.GetSecondaryConfigs()
+	secondaryConfigs := tm.GetSecondaryTableConfigs()
 	if len(secondaryConfigs) == 0 {
 		return tm.GetPrimaryTableName()
 	}
@@ -86,7 +80,22 @@ func (tm *TableManager) GetQueryTables() []string {
 	return tm.GetTableNames()
 }
 
+// GetSecondaryTableNames returns only the secondary table names
+func (tm *TableManager) GetSecondaryTableNames() []string {
+	var secondaryNames []string
+	for _, config := range tm.config.Database.Tables.Secondary {
+		secondaryNames = append(secondaryNames, config.TableName)
+	}
+	return secondaryNames
+}
+
+// GetSecondaryTableConfigs returns the secondary table configurations
+func (tm *TableManager) GetSecondaryTableConfigs() map[string]SecondaryTableConfig {
+	return tm.config.Database.Tables.Secondary
+}
+
 // BuildUnionQuery builds a UNION query for listing contents across multiple tables
+// This is now used only by the API layer for querying across all tables
 func (tm *TableManager) BuildUnionQuery(baseQuery string) string {
 	tables := tm.GetQueryTables()
 	if len(tables) == 1 {
@@ -97,6 +106,14 @@ func (tm *TableManager) BuildUnionQuery(baseQuery string) string {
 	var unionParts []string
 	for _, table := range tables {
 		tableQuery := strings.Replace(baseQuery, "{{TABLE}}", table, -1)
+		// Clean up whitespace and newlines for proper SQL formatting
+		tableQuery = strings.ReplaceAll(tableQuery, "\n", " ")
+		tableQuery = strings.ReplaceAll(tableQuery, "\t", " ")
+		// Remove multiple spaces
+		for strings.Contains(tableQuery, "  ") {
+			tableQuery = strings.ReplaceAll(tableQuery, "  ", " ")
+		}
+		tableQuery = strings.TrimSpace(tableQuery)
 		unionParts = append(unionParts, tableQuery)
 	}
 
@@ -166,4 +183,86 @@ func (tm *TableManager) GetTableConfigByID(tableID string) (interface{}, bool) {
 
 	config, exists := tm.config.Database.Tables.Secondary[tableID]
 	return config, exists
+}
+
+// InitializeTableIDs generates and caches table IDs for all tables
+func (tm *TableManager) InitializeTableIDs() {
+	// Clear existing maps
+	tm.tableIDMap = make(map[string]string)
+	tm.tableNameMap = make(map[string]string)
+
+	// Generate ID for primary table
+	primaryTableName := tm.GetPrimaryTableName()
+	primaryTableID := GenerateTableID()
+	tm.tableIDMap[primaryTableID] = primaryTableName
+	tm.tableNameMap[primaryTableName] = primaryTableID
+
+	// Generate IDs for secondary tables
+	for _, config := range tm.config.Database.Tables.Secondary {
+		tableID := GenerateTableID()
+		tm.tableIDMap[tableID] = config.TableName
+		tm.tableNameMap[config.TableName] = tableID
+	}
+}
+
+// GetTableNameByID returns the table name for a given table ID
+func (tm *TableManager) GetTableNameByID(tableID string) (string, bool) {
+	tableName, exists := tm.tableIDMap[tableID]
+	return tableName, exists
+}
+
+// GetTableIDByName returns the table ID for a given table name
+func (tm *TableManager) GetTableIDByName(tableName string) (string, bool) {
+	tableID, exists := tm.tableNameMap[tableName]
+	return tableID, exists
+}
+
+// GetTableIDForQuery returns the table ID to use for a query
+// If single table mode, returns the primary table ID
+// If multi table mode, requires tableID parameter
+func (tm *TableManager) GetTableIDForQuery(tableID string) (string, error) {
+	if !tm.IsMultiTableMode() {
+		// Single table mode - return primary table ID
+		primaryTableName := tm.GetPrimaryTableName()
+		if tableID, exists := tm.tableNameMap[primaryTableName]; exists {
+			return tableID, nil
+		}
+		return "", fmt.Errorf("primary table ID not found in cache")
+	}
+
+	// Multi table mode - validate the provided table ID
+	if _, exists := tm.tableIDMap[tableID]; !exists {
+		return "", fmt.Errorf("invalid table ID: %s", tableID)
+	}
+
+	return tableID, nil
+}
+
+// LoadTableMappingsFromDB loads table ID mappings from the database
+func (tm *TableManager) LoadTableMappingsFromDB(db *db.DB) error {
+	mappings, err := GetAllTableMappings(db)
+	if err != nil {
+		return fmt.Errorf("load table mappings from DB: %w", err)
+	}
+
+	// Update cache with loaded mappings
+	tm.tableIDMap = make(map[string]string)
+	tm.tableNameMap = make(map[string]string)
+
+	for tableID, tableName := range mappings {
+		tm.tableIDMap[tableID] = tableName
+		tm.tableNameMap[tableName] = tableID
+	}
+
+	return nil
+}
+
+// SaveTableMappingsToDB saves current table ID mappings to the database
+func (tm *TableManager) SaveTableMappingsToDB(db *db.DB) error {
+	for tableID, tableName := range tm.tableIDMap {
+		if err := SetTableName(db, tableID, tableName); err != nil {
+			return fmt.Errorf("save table mapping %s->%s: %w", tableID, tableName, err)
+		}
+	}
+	return nil
 }

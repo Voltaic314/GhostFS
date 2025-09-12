@@ -5,12 +5,12 @@
       "primary": {
         "table_name": "nodes",
         "seed": 0,
-        "min_child_folders": 1,
-        "max_child_folders": 5,
+        "min_child_folders": 5,
+        "max_child_folders": 20,
         "min_child_files": 0,
         "max_child_files": 10,
-        "min_depth": 3,
-        "max_depth": 6
+        "min_depth": 5,
+        "max_depth": 8
       },
       "secondary": {
         "0": {
