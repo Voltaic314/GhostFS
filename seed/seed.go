@@ -96,7 +96,7 @@ func Seed() {
 
 	// Generate tree structure using sliding window approach
 	fmt.Println("🌳 Generating tree structure...")
-	totalNodes, primaryNodes, err := generateTreeLevelByLevel(cfg, rng, DB, tableManager, seed)
+	totalNodes, primaryNodes, err := generateTreeLevelByLevel(rng, DB, tableManager, seed)
 	if err != nil {
 		fatalf("generate tree: %v", err)
 	}
@@ -197,7 +197,7 @@ func createTables(db *db.DB, tableManager *tables.TableManager) error {
 	return nil
 }
 
-func generateTreeLevelByLevel(cfg *tables.TestConfig, rng *rand.Rand, db *db.DB, tableManager *tables.TableManager, seed int64) (int64, int64, error) {
+func generateTreeLevelByLevel(rng *rand.Rand, db *db.DB, tableManager *tables.TableManager, seed int64) (int64, int64, error) {
 	// Use primary table config for generation parameters
 	primaryConfig := tableManager.GetPrimaryConfig()
 
@@ -231,7 +231,7 @@ func generateTreeLevelByLevel(cfg *tables.TestConfig, rng *rand.Rand, db *db.DB,
 		fmt.Printf("📁 Processing level %d...\n", currentLevel)
 
 		// Query database for parent nodes at level (currentLevel-1) to generate children at currentLevel
-		nodeCount, err := generateChildrenForLevelFromDB(cfg, rng, db, tableManager, currentLevel)
+		nodeCount, err := generateChildrenForLevelFromDB(rng, db, tableManager, currentLevel)
 		if err != nil {
 			return 0, 0, fmt.Errorf("generate children for level %d: %w", currentLevel, err)
 		}
@@ -294,7 +294,7 @@ func insertRootNode(db *db.DB, tableManager *tables.TableManager, rootID string)
 	return nil
 }
 
-func generateChildrenForLevelFromDB(cfg *tables.TestConfig, rng *rand.Rand, db *db.DB, tableManager *tables.TableManager, targetLevel int) (int64, error) {
+func generateChildrenForLevelFromDB(rng *rand.Rand, db *db.DB, tableManager *tables.TableManager, targetLevel int) (int64, error) {
 	var totalNodeCount int64
 	const batchSize = 1000       // Process 1000 parents at a time
 	var lastSeenRowID int64 = -1 // Start with -1 so we include rowid 0
@@ -356,7 +356,7 @@ func generateChildrenForLevelFromDB(cfg *tables.TestConfig, rng *rand.Rand, db *
 		lastSeenRowID = maxRowID
 
 		// Generate children for this batch of parents
-		nodeCount, err := generateChildrenForBatch(cfg, rng, db, tableManager, parents, targetLevel)
+		nodeCount, err := generateChildrenForBatch(rng, db, tableManager, parents, targetLevel)
 		if err != nil {
 			return 0, fmt.Errorf("generate children for batch: %w", err)
 		}
@@ -375,7 +375,7 @@ func generateChildrenForLevelFromDB(cfg *tables.TestConfig, rng *rand.Rand, db *
 	return totalNodeCount, nil
 }
 
-func generateChildrenForBatch(cfg *tables.TestConfig, rng *rand.Rand, db *db.DB, tableManager *tables.TableManager, parents []ParentNodeWithExistence, targetLevel int) (int64, error) {
+func generateChildrenForBatch(rng *rand.Rand, db *db.DB, tableManager *tables.TableManager, parents []ParentNodeWithExistence, targetLevel int) (int64, error) {
 	var nodeCount int64
 	primaryConfig := tableManager.GetPrimaryConfig()
 	secondaryConfigs := tableManager.GetSecondaryTableConfigs()
