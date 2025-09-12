@@ -1,0 +1,31 @@
+{
+  "database": {
+    "path": "GhostFS.db",
+    "tables": {
+      "primary": {
+        "table_name": "nodes",
+        "seed": 0,
+        "min_child_folders": 1,
+        "max_child_folders": 5,
+        "min_child_files": 0,
+        "max_child_files": 10,
+        "min_depth": 3,
+        "max_depth": 6
+      },
+      "secondary": {
+        "0": {
+          "table_name": "nodes_secondary_0",
+          "dst_prob": 0.7
+        },
+        "1": {
+          "table_name": "nodes_secondary_1", 
+          "dst_prob": 0.5
+        }
+      }
+    }
+  },
+  "network": {
+    "address": "127.0.0.1",
+    "port": 8086
+  }
+}
