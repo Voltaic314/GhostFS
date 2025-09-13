@@ -111,10 +111,9 @@ func (db *DB) QueueWrite(tableName, query string, params ...any) {
 			Params: params,
 			OpType: "insert",
 		})
-		// if we are now above threshold, flush the queue
-		wq.Flush() // Do not pass in force flush True here
-		// because we want to flush the queue if it is ready
-		// to be flushed, not because we are forcing a flush
+		// Only flush if we hit the batch size threshold or timer
+		// Don't force flush on every write
+		wq.Flush()
 	}
 }
 
@@ -127,7 +126,7 @@ func (db *DB) QueueWriteWithPath(tableName, path, query string, params ...any) {
 			Params: params,
 			OpType: "update",
 		})
-		// ✅ FIX: Add flush call like QueueWrite has
+		// Only flush if we hit the batch size threshold or timer
 		wq.Flush()
 	}
 }
@@ -160,7 +159,31 @@ func (db *DB) GetWriteQueue(table string) typesdb.WriteQueueInterface {
 // ForceFlushTable forces a flush of the write queue for a specific table
 func (db *DB) ForceFlushTable(tableName string) {
 	if wq, ok := db.wqMap[tableName]; ok {
-		db.flushWriteQueue(wq, tableName, true)
+		// Keep trying until we successfully flush or there's nothing to flush
+		for {
+			batches := wq.Flush(true)
+			if len(batches) == 0 {
+				break // Nothing more to flush
+			}
+
+			// Execute the batches
+			for _, b := range batches {
+				qs := make([]string, len(b.Ops))
+				ps := make([][]any, len(b.Ops))
+				for i, op := range b.Ops {
+					qs[i] = op.Query
+					ps[i] = op.Params
+				}
+				if err := batchExecute(db.conn, map[string][]string{tableName: qs}, map[string][][]any{tableName: ps}); err != nil {
+					fmt.Printf("❌ Database batch execution failed for table %s: %v\n", tableName, err)
+					sampleCount := len(qs)
+					if sampleCount > 3 {
+						sampleCount = 3
+					}
+					fmt.Printf("   Query samples: %v\n", qs[:sampleCount])
+				}
+			}
+		}
 	}
 }
 

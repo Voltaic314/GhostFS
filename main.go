@@ -1,7 +1,7 @@
 package main 
 
 import (
-	"github.com/Voltaic314/GhostFS/seed"
+	"github.com/Voltaic314/GhostFS/db/seed"
 )
 
 func main() {

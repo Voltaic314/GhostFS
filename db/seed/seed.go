@@ -101,9 +101,16 @@ func Seed() {
 		fatalf("generate tree: %v", err)
 	}
 
-	// Force flush all queues
+	// Force flush all queues - do this sequentially to avoid transaction conflicts
+	fmt.Println("🔄 Flushing all write queues...")
 	for _, tableName := range tableNames {
 		DB.ForceFlushTable(tableName)
+	}
+
+	// Force DuckDB to checkpoint and merge WAL into main database
+	// Use FORCE CHECKPOINT to wait for all active transactions to finish
+	if err := DB.Write("FORCE CHECKPOINT"); err != nil {
+		fmt.Printf("⚠️  Could not checkpoint database: %v\n", err)
 	}
 
 	if tableManager.IsMultiTableMode() {

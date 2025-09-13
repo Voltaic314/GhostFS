@@ -26,4 +26,4 @@ go.work.sum
 
 # db file
 GhostFS.db
-GhostFS.db-wal
+GhostFS.db.wal
