@@ -3,7 +3,7 @@ package tables
 import (
 	"encoding/json"
 
-	"github.com/Voltaic314/GhostFS/db"
+	"github.com/Voltaic314/GhostFS/code/db"
 )
 
 // NodesTable represents a generic nodes table for file system emulation

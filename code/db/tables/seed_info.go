@@ -3,7 +3,7 @@ package tables
 import (
 	"fmt"
 
-	"github.com/Voltaic314/GhostFS/db"
+	"github.com/Voltaic314/GhostFS/code/db"
 )
 
 // SeedInfoTable represents a table to store seed generation information

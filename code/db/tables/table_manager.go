@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Voltaic314/GhostFS/db"
+	"github.com/Voltaic314/GhostFS/code/db"
 )
 
 // TableManager handles table operations for single/multi table modes

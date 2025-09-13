@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/Voltaic314/GhostFS/db"
-	"github.com/Voltaic314/GhostFS/db/tables"
+	"github.com/Voltaic314/GhostFS/code/db"
+	"github.com/Voltaic314/GhostFS/code/db/tables"
 )
 
 // ListTablesResponse represents the response with table information

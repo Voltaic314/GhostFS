@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"github.com/Voltaic314/GhostFS/db"
+	"github.com/Voltaic314/GhostFS/code/db"
 	"github.com/google/uuid"
 )
 

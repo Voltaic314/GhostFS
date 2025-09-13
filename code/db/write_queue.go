@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	typesdb "github.com/Voltaic314/GhostFS/types/db"
+	typesdb "github.com/Voltaic314/GhostFS/code/types/db"
 )
 
 // WriteQueue manages write operations for a single table

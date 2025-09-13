@@ -3,8 +3,8 @@ package routes
 import (
 	"time"
 
-	"github.com/Voltaic314/GhostFS/api/routes/items"
-	"github.com/Voltaic314/GhostFS/api/routes/tables"
+	"github.com/Voltaic314/GhostFS/code/api/routes/items"
+	"github.com/Voltaic314/GhostFS/code/api/routes/tables"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )

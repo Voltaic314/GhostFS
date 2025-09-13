@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	typesdb "github.com/Voltaic314/GhostFS/types/db"
+	typesdb "github.com/Voltaic314/GhostFS/code/types/db"
 )
 
 type DB struct {

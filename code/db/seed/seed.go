@@ -8,9 +8,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Voltaic314/GhostFS/db"
-	"github.com/Voltaic314/GhostFS/db/tables"
-	typesdb "github.com/Voltaic314/GhostFS/types/db"
+	"github.com/Voltaic314/GhostFS/code/db"
+	"github.com/Voltaic314/GhostFS/code/db/tables"
+	typesdb "github.com/Voltaic314/GhostFS/code/types/db"
 	"github.com/google/uuid"
 	_ "github.com/marcboeker/go-duckdb"
 )

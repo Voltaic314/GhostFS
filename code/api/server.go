@@ -3,19 +3,19 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"flag"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/Voltaic314/GhostFS/api/routes"
-	"github.com/Voltaic314/GhostFS/db"
-	"github.com/Voltaic314/GhostFS/db/tables"
+	"github.com/Voltaic314/GhostFS/code/api/routes"
+	"github.com/Voltaic314/GhostFS/code/db"
+	"github.com/Voltaic314/GhostFS/code/db/tables"
 	"github.com/go-chi/chi/v5"
 )
 
