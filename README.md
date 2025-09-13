@@ -1,4 +1,4 @@
-# 👻 GhostFS - File System Emulator
+# 👻 GhostFS - A File System Simulator
 
 <div align="center">
 
