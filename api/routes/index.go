@@ -3,8 +3,7 @@ package routes
 import (
 	"time"
 
-	"github.com/Voltaic314/GhostFS/api/routes/items/files"
-	"github.com/Voltaic314/GhostFS/api/routes/items/folders"
+	"github.com/Voltaic314/GhostFS/api/routes/items"
 	"github.com/Voltaic314/GhostFS/api/routes/tables"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -21,10 +20,7 @@ func RegisterAllRoutes(r chi.Router, server interface{}) {
 	r.Route("/tables", func(r chi.Router) {
 		tables.RegisterRoutes(r, server)
 	})
-	r.Route("/folders", func(r chi.Router) {
-		folders.RegisterRoutes(r, server)
-	})
-	r.Route("/files", func(r chi.Router) {
-		files.RegisterRoutes(r, server)
+	r.Route("/items", func(r chi.Router) {
+		items.RegisterRoutes(r, server)
 	})
 }

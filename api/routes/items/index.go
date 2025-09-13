@@ -1,4 +1,4 @@
-package files
+package items
 
 import (
 	"net/http"
@@ -6,9 +6,9 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// RegisterRoutes registers all file-related routes
+// RegisterRoutes registers all item-related routes (files and folders)
 func RegisterRoutes(r chi.Router, server interface{}) {
-	// File operations
+	// Item operations (works on files and folders)
 	r.Post("/list", func(w http.ResponseWriter, r *http.Request) {
 		HandleList(w, r, server)
 	})
