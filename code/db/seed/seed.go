@@ -495,6 +495,9 @@ func checkParentDependencies(parentExistenceMap, childExistenceMap tables.Second
 
 // buildPath constructs the full path for a node based on its parent's path and name
 func buildPath(parentPath, name string) string {
+	if parentPath == "/" {
+		return "/" + name
+	}
 	return parentPath + "/" + name
 }
 

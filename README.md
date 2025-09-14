@@ -47,6 +47,8 @@ Perfect for:
 - 📡 **REST API** - Standard HTTP endpoints for file operations
 - 📊 **Batch Operations** - Create/delete multiple items at once
 - 🎯 **Table Management** - List and manage multiple file systems
+- 📈 **Access Tracking** - Automatic tracking of accessed folders via `checked` flag
+- 🔀 **Write Queues** - Non-blocking batch updates for optimal performance
 
 ### Coming Soon (v0.2+)
 - 🌐 **Network Simulation** - Configurable latency, jitter, timeouts
@@ -141,7 +143,7 @@ go mod download
 go run main.go
 
 # Start the API server
-cd api
+cd code/api
 go run main.go server.go
 
 # Server starts on http://localhost:8086 (configurable via config.json)
@@ -229,13 +231,15 @@ POST /tables/list
 ```json
 {
   "success": true,
-  "tables": [
-    {
-      "table_id": "uuid-here",
-      "table_name": "nodes",
-      "type": "primary"
-    }
-  ]
+  "data": {
+    "tables": [
+      {
+        "table_id": "uuid-here",
+        "table_name": "nodes",
+        "type": "primary"
+      }
+    ]
+  }
 }
 ```
 
@@ -248,7 +252,18 @@ Content-Type: application/json
 
 {
   "table_id": "uuid-here",
-  "folder_id": "root-folder-id"
+  "folder_id": "root-folder-id",
+  "folders_only": false
+}
+```
+
+#### Get Root Folder
+```http
+GET /items/get_root
+Content-Type: application/json
+
+{
+  "table_id": "uuid-here"
 }
 ```
 
@@ -366,19 +381,22 @@ curl -X POST http://localhost:8086/items/list \
 ### Project Structure
 ```
 GhostFS/
-├── api/                    # REST API server
-│   ├── routes/
-│   │   ├── tables/        # Table management endpoints
-│   │   └── items/         # File/folder CRUD endpoints
-│   ├── main.go           # API server entry point
-│   └── server.go         # Server configuration
-├── db/                   # Database layer
-│   ├── tables/          # Table management
-│   └── write_queue.go   # Batched writes
-├── seed/                # Database seeding
-├── types/               # Shared types
-├── config.json         # Configuration
-└── main.go            # Seeder entry point
+├── code/
+│   ├── api/                    # REST API server
+│   │   ├── routes/
+│   │   │   ├── tables/         # Table management endpoints
+│   │   │   └── items/          # File/folder CRUD endpoints
+│   │   ├── main.go             # API server entry point
+│   │   └── server.go           # Server configuration
+│   ├── db/                     # Database layer
+│   │   ├── tables/             # Table management
+│   │   ├── seed/               # Database seeding
+│   │   └── write_queue.go      # Batched writes
+│   └── types/                  # Shared types
+│       ├── api/                # API response types
+│       └── db/                 # Database schema types
+├── config.json                 # Configuration
+└── main.go                     # Seeder entry point
 ```
 
 ### Contributing

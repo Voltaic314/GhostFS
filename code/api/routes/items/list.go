@@ -2,66 +2,92 @@ package items
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+
+	"github.com/Voltaic314/GhostFS/code/db"
+	"github.com/Voltaic314/GhostFS/code/db/tables"
+	"github.com/Voltaic314/GhostFS/code/types/api"
+	dbTypes "github.com/Voltaic314/GhostFS/code/types/db"
 )
 
-// ListRequest represents a request to list all items in a folder
+// Request/Response structs for this endpoint
 type ListRequest struct {
-	TableID  string `json:"table_id"`
-	FolderID string `json:"folder_id"`
+	TableID     string `json:"table_id"`
+	FolderID    string `json:"folder_id"`
+	FoldersOnly bool   `json:"folders_only,omitempty"` // Optional: only return folders
 }
 
-// ListResponse represents the response with folder contents
-type ListResponse struct {
-	Success bool     `json:"success"`
-	Error   string   `json:"error,omitempty"`
-	Items   []FSItem `json:"items,omitempty"`
-}
-
-// FSItem represents a filesystem item (file or folder)
-type FSItem struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Path    string `json:"path"`
-	Type    string `json:"type"` // "file" or "folder"
-	Size    int64  `json:"size"`
-	Level   int    `json:"level"`
-	Checked bool   `json:"checked"`
+type ListResponseData struct {
+	Items []dbTypes.Node `json:"items"`
 }
 
 // HandleList handles requests to list all items (files and folders) in a folder
 func HandleList(w http.ResponseWriter, r *http.Request, server interface{}) {
 	var req ListRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		api.BadRequest(w, "Invalid JSON")
 		return
 	}
 
-	// TODO: Implement actual item listing logic using server.GetDB() and server.GetTableManager()
-	// Query database for all children of the given folder_id
-	// Return both files and folders in a single response
+	// Cast server to get access to DB and TableManager
+	s := server.(interface {
+		GetTableManager() *tables.TableManager
+		GetDB() *db.DB
+	})
 
-	// For now, return a placeholder response
-	response := ListResponse{
-		Success: true,
-		Items: []FSItem{
-			{
-				ID:   "folder-1",
-				Name: "Documents",
-				Path: "/Documents",
-				Type: "folder",
-				Size: 0,
-			},
-			{
-				ID:   "file-1",
-				Name: "readme.txt",
-				Path: "/readme.txt",
-				Type: "file",
-				Size: 1024,
-			},
-		},
+	tableManager := s.GetTableManager()
+	database := s.GetDB()
+
+	// Get table name from table ID (check cache first)
+	tableName, exists := tableManager.GetTableNameByID(req.TableID)
+	if !exists {
+		// Not in cache, try to load from lookup table
+		var err error
+		tableName, err = tables.GetTableName(database, req.TableID)
+		if err != nil {
+			api.BadRequest(w, fmt.Sprintf("Invalid table_id: %s", req.TableID))
+			return
+		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	// Build SQL query to get children of the specified folder
+	query := fmt.Sprintf("SELECT id, name, path, type, size, level, checked FROM %s WHERE parent_id = ?", tableName)
+
+	// Add folders_only filter if requested
+	if req.FoldersOnly {
+		query += " AND type = 'folder'"
+	}
+
+	// Order by type (folders first) then by name
+	query += " ORDER BY type DESC, name ASC"
+
+	// Execute query
+	rows, err := database.Query(tableName, query, req.FolderID)
+	if err != nil {
+		api.InternalError(w, fmt.Sprintf("Database query failed: %v", err))
+		return
+	}
+	defer rows.Close()
+
+	// Parse results
+	var items []dbTypes.Node
+	for rows.Next() {
+		var item dbTypes.Node
+		err := rows.Scan(&item.ID, &item.Name, &item.Path, &item.Type, &item.Size, &item.Level, &item.Checked)
+		if err != nil {
+			api.InternalError(w, fmt.Sprintf("Failed to parse database results: %v", err))
+			return
+		}
+		items = append(items, item)
+	}
+
+	// Queue an update to mark the parent folder as "checked" (accessed)
+	// This tracks which folders have been listed/accessed without impacting performance
+	updateQuery := fmt.Sprintf("UPDATE %s SET checked = TRUE WHERE id = ?", tableName)
+	database.QueueWrite(tableName, updateQuery, req.FolderID)
+
+	// Return successful response
+	responseData := ListResponseData{Items: items}
+	api.Success(w, responseData)
 }
