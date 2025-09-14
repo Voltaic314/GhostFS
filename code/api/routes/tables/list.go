@@ -1,25 +1,17 @@
 package tables
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/Voltaic314/GhostFS/code/db"
 	"github.com/Voltaic314/GhostFS/code/db/tables"
+	"github.com/Voltaic314/GhostFS/code/types/api"
+	dbTypes "github.com/Voltaic314/GhostFS/code/types/db"
 )
 
-// ListTablesResponse represents the response with table information
-type ListTablesResponse struct {
-	Success bool        `json:"success"`
-	Error   string      `json:"error,omitempty"`
-	Tables  []TableInfo `json:"tables,omitempty"`
-}
-
-// TableInfo represents information about a table
-type TableInfo struct {
-	TableID   string `json:"table_id"`
-	TableName string `json:"table_name"`
-	Type      string `json:"type"` // "primary" or "secondary"
+// Response struct for this endpoint
+type ListTablesResponseData struct {
+	Tables []dbTypes.TableInfo `json:"tables"`
 }
 
 // HandleListTables handles requests to list all node tables
@@ -30,37 +22,25 @@ func HandleListTables(w http.ResponseWriter, r *http.Request, serverInterface in
 		GetDB() *db.DB
 	})
 
-	tableManager := server.GetTableManager()
+	database := server.GetDB()
 
-	var tableList []TableInfo
+	// Get all table mappings with types from the database
+	tableMappingsWithTypes, err := tables.GetAllTableMappingsWithTypes(database)
+	if err != nil {
+		api.InternalError(w, "Failed to retrieve table mappings from database")
+		return
+	}
 
-	// Get primary table
-	primaryTableName := tableManager.GetPrimaryTableName()
-	if primaryTableID, exists := tableManager.GetTableIDByName(primaryTableName); exists {
-		tableList = append(tableList, TableInfo{
-			TableID:   primaryTableID,
-			TableName: primaryTableName,
-			Type:      "primary",
+	var tableList []dbTypes.TableInfo
+	for tableID, info := range tableMappingsWithTypes {
+		tableList = append(tableList, dbTypes.TableInfo{
+			TableID:   tableID,
+			TableName: info["table_name"],
+			Type:      info["type"],
 		})
 	}
 
-	// Get secondary tables
-	secondaryConfigs := tableManager.GetSecondaryTableConfigs()
-	for _, config := range secondaryConfigs {
-		if secondaryTableID, exists := tableManager.GetTableIDByName(config.TableName); exists {
-			tableList = append(tableList, TableInfo{
-				TableID:   secondaryTableID,
-				TableName: config.TableName,
-				Type:      "secondary",
-			})
-		}
-	}
-
-	response := ListTablesResponse{
-		Success: true,
-		Tables:  tableList,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	// Return successful response
+	responseData := ListTablesResponseData{Tables: tableList}
+	api.Success(w, responseData)
 }

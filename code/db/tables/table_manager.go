@@ -259,10 +259,22 @@ func (tm *TableManager) LoadTableMappingsFromDB(db *db.DB) error {
 
 // SaveTableMappingsToDB saves current table ID mappings to the database
 func (tm *TableManager) SaveTableMappingsToDB(db *db.DB) error {
-	for tableID, tableName := range tm.tableIDMap {
-		if err := SetTableName(db, tableID, tableName); err != nil {
-			return fmt.Errorf("save table mapping %s->%s: %w", tableID, tableName, err)
+	// Save primary table mapping
+	primaryTableName := tm.GetPrimaryTableName()
+	if primaryTableID, exists := tm.tableNameMap[primaryTableName]; exists {
+		if err := SetTableName(db, primaryTableID, primaryTableName, "primary"); err != nil {
+			return fmt.Errorf("save primary table mapping %s->%s: %w", primaryTableID, primaryTableName, err)
 		}
 	}
+
+	// Save secondary table mappings
+	for _, config := range tm.config.Database.Tables.Secondary {
+		if tableID, exists := tm.tableNameMap[config.TableName]; exists {
+			if err := SetTableName(db, tableID, config.TableName, "secondary"); err != nil {
+				return fmt.Errorf("save secondary table mapping %s->%s: %w", tableID, config.TableName, err)
+			}
+		}
+	}
+
 	return nil
 }

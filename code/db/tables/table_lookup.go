@@ -16,6 +16,7 @@ func (t *TableLookup) Schema() string {
 	return `
 		table_id VARCHAR NOT NULL PRIMARY KEY,
 		table_name VARCHAR NOT NULL,
+		type VARCHAR NOT NULL
 	`
 }
 
@@ -36,16 +37,16 @@ func GetTableName(db *db.DB, tableID string) (string, error) {
 	return tableName, err
 }
 
-// SetTableName sets the table name for a given table ID
-func SetTableName(db *db.DB, tableID, tableName string) error {
-	query := "INSERT OR REPLACE INTO table_id_lookup (table_id, table_name) VALUES (?, ?)"
-	_, err := db.Exec(query, tableID, tableName)
+// SetTableName sets the table name and type for a given table ID
+func SetTableName(db *db.DB, tableID, tableName, tableType string) error {
+	query := "INSERT OR REPLACE INTO table_id_lookup (table_id, table_name, type) VALUES (?, ?, ?)"
+	_, err := db.Exec(query, tableID, tableName, tableType)
 	return err
 }
 
-// GetAllTableMappings returns all table ID to name mappings
+// GetAllTableMappings returns all table ID to name mappings with their types
 func GetAllTableMappings(db *db.DB) (map[string]string, error) {
-	query := "SELECT table_id, table_name FROM table_id_lookup"
+	query := "SELECT table_id, table_name, type FROM table_id_lookup"
 	rows, err := db.Query("", query)
 	if err != nil {
 		return nil, err
@@ -54,11 +55,34 @@ func GetAllTableMappings(db *db.DB) (map[string]string, error) {
 
 	mappings := make(map[string]string)
 	for rows.Next() {
-		var tableID, tableName string
-		if err := rows.Scan(&tableID, &tableName); err != nil {
+		var tableID, tableName, tableType string
+		if err := rows.Scan(&tableID, &tableName, &tableType); err != nil {
 			return nil, err
 		}
 		mappings[tableID] = tableName
+	}
+	return mappings, nil
+}
+
+// GetAllTableMappingsWithTypes returns all table mappings including type information
+func GetAllTableMappingsWithTypes(db *db.DB) (map[string]map[string]string, error) {
+	query := "SELECT table_id, table_name, type FROM table_id_lookup"
+	rows, err := db.Query("", query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	mappings := make(map[string]map[string]string)
+	for rows.Next() {
+		var tableID, tableName, tableType string
+		if err := rows.Scan(&tableID, &tableName, &tableType); err != nil {
+			return nil, err
+		}
+		mappings[tableID] = map[string]string{
+			"table_name": tableName,
+			"type":       tableType,
+		}
 	}
 	return mappings, nil
 }

@@ -21,4 +21,7 @@ func RegisterRoutes(r chi.Router, server interface{}) {
 	r.Post("/download", func(w http.ResponseWriter, r *http.Request) {
 		HandleDownload(w, r, server)
 	})
+	r.Get("/get_root", func(w http.ResponseWriter, r *http.Request) {
+		HandleGetRoot(w, r, server)
+	})
 }
