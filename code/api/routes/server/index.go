@@ -8,5 +8,4 @@ import (
 func RegisterRoutes(r chi.Router) {
 	// Health check
 	r.Get("/health", HandleHealth)
-	r.Post("/register", HandleRegister)
 }
