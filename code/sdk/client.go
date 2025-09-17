@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/Voltaic314/GhostFS/code/core/items"
@@ -73,25 +72,25 @@ func NewGhostFSClient(configPath string) (*GhostFSClient, error) {
 		fmt.Println("✅ Database generated successfully!")
 	}
 
-	return NewGhostFSClientWithDB(dbPath)
+	return NewGhostFSClientWithDB(dbPath, config.Database.Tables)
 }
 
 // NewGhostFSClientWithDB creates a new SDK client with a specific database file
-func NewGhostFSClientWithDB(dbPath string) (*GhostFSClient, error) {
+func NewGhostFSClientWithDB(dbPath string, config SDKTablesConfig) (*GhostFSClient, error) {
 	// Initialize database
 	database, err := db.NewDB(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	// Load configuration
-	config, err := loadConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load configuration: %w", err)
-	}
+	// Convert SDK config to TestConfig format
+	testConfig := &tables.TestConfig{}
+	testConfig.Database.Path = dbPath
+	testConfig.Database.Tables.Primary = config.Primary
+	testConfig.Database.Tables.Secondary = config.Secondary
 
 	// Create table manager
-	tableManager := tables.NewTableManager(config)
+	tableManager := tables.NewTableManager(testConfig)
 	if err := tableManager.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid table configuration: %w", err)
 	}
@@ -164,71 +163,6 @@ func loadSDKConfig(configPath string) (*SDKConfig, error) {
 	}
 
 	return &config, nil
-}
-
-// loadConfig loads the configuration from config.json
-func loadConfig() (*tables.TestConfig, error) {
-	// Look for config.json in current directory and parent directories
-	configPath, err := findConfigFile()
-	if err != nil {
-		return nil, err
-	}
-
-	return tables.LoadConfig(configPath)
-}
-
-// findConfigFile searches for config.json relative to the package location
-func findConfigFile() (string, error) {
-	// Get the directory of the current file (this SDK package)
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("failed to get current file path")
-	}
-
-	// Start from the directory containing this SDK file (code/sdk/)
-	packageDir := filepath.Dir(currentFile)
-
-	// The config.json should be 2 levels up from code/sdk/ (at the project root)
-	// code/sdk/ -> code/ -> project root
-	projectRoot := filepath.Join(packageDir, "..", "..")
-	projectRoot, err := filepath.Abs(projectRoot)
-	if err != nil {
-		return "", fmt.Errorf("failed to get absolute path to project root: %w", err)
-	}
-
-	// Look for config.json in the project root
-	configPath := filepath.Join(projectRoot, "config.json")
-	if _, err := os.Stat(configPath); err == nil {
-		return configPath, nil
-	}
-
-	// Fallback: search up the directory tree from the package location
-	dir := packageDir
-	for {
-		configPath := filepath.Join(dir, "config.json")
-		if _, err := os.Stat(configPath); err == nil {
-			return configPath, nil
-		}
-
-		// Move up one directory
-		parentDir := filepath.Dir(dir)
-		if parentDir == dir {
-			// Reached root directory
-			break
-		}
-		dir = parentDir
-	}
-
-	// Final fallback: try current working directory
-	currentDir, err := os.Getwd()
-	if err == nil {
-		configPath := filepath.Join(currentDir, "config.json")
-		if _, err := os.Stat(configPath); err == nil {
-			return configPath, nil
-		}
-	}
-
-	return "", fmt.Errorf("config.json not found in project root (%s) or relative to package location", projectRoot)
 }
 
 // getMasterSeed retrieves the master seed from the database
