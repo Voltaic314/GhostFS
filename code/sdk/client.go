@@ -113,24 +113,32 @@ func NewGhostFSClientWithDB(dbPath string) (*GhostFSClient, error) {
 	}, nil
 }
 
-// findDatabaseFile searches for GhostFS.db relative to the config file location
+// findDatabaseFile searches for GhostFS.db relative to the package location
 func findDatabaseFile() (string, error) {
-	// First, find the config file to get the base directory
-	configPath, err := findConfigFile()
-	if err != nil {
-		return "", fmt.Errorf("failed to find config file: %w", err)
+	// Get the directory of the current file (this SDK package)
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("failed to get current file path")
 	}
 
-	// Get the directory containing the config file
-	configDir := filepath.Dir(configPath)
+	// Start from the directory containing this SDK file (code/sdk/)
+	packageDir := filepath.Dir(currentFile)
 
-	// Look for GhostFS.db in the same directory as config.json
-	dbPath := filepath.Join(configDir, "GhostFS.db")
+	// The GhostFS.db should be 2 levels up from code/sdk/ (at the project root)
+	// code/sdk/ -> code/ -> project root
+	projectRoot := filepath.Join(packageDir, "..", "..")
+	projectRoot, err := filepath.Abs(projectRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path to project root: %w", err)
+	}
+
+	// Look for GhostFS.db in the project root
+	dbPath := filepath.Join(projectRoot, "GhostFS.db")
 	if _, err := os.Stat(dbPath); err == nil {
 		return dbPath, nil
 	}
 
-	// If not found in config directory, try current working directory as fallback
+	// Fallback: try current working directory
 	currentDir, err := os.Getwd()
 	if err == nil {
 		dbPath := filepath.Join(currentDir, "GhostFS.db")
@@ -139,7 +147,7 @@ func findDatabaseFile() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("GhostFS.db not found in config directory (%s) or current directory", configDir)
+	return "", fmt.Errorf("GhostFS.db not found in project root (%s) or current directory", projectRoot)
 }
 
 // loadConfig loads the configuration from config.json
@@ -161,10 +169,24 @@ func findConfigFile() (string, error) {
 		return "", fmt.Errorf("failed to get current file path")
 	}
 
-	// Start from the directory containing this SDK file
+	// Start from the directory containing this SDK file (code/sdk/)
 	packageDir := filepath.Dir(currentFile)
 
-	// Search up the directory tree from the package location
+	// The config.json should be 2 levels up from code/sdk/ (at the project root)
+	// code/sdk/ -> code/ -> project root
+	projectRoot := filepath.Join(packageDir, "..", "..")
+	projectRoot, err := filepath.Abs(projectRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path to project root: %w", err)
+	}
+
+	// Look for config.json in the project root
+	configPath := filepath.Join(projectRoot, "config.json")
+	if _, err := os.Stat(configPath); err == nil {
+		return configPath, nil
+	}
+
+	// Fallback: search up the directory tree from the package location
 	dir := packageDir
 	for {
 		configPath := filepath.Join(dir, "config.json")
@@ -181,7 +203,7 @@ func findConfigFile() (string, error) {
 		dir = parentDir
 	}
 
-	// Fallback: try current working directory
+	// Final fallback: try current working directory
 	currentDir, err := os.Getwd()
 	if err == nil {
 		configPath := filepath.Join(currentDir, "config.json")
@@ -190,7 +212,7 @@ func findConfigFile() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("config.json not found relative to package location or current directory")
+	return "", fmt.Errorf("config.json not found in project root (%s) or relative to package location", projectRoot)
 }
 
 // getMasterSeed retrieves the master seed from the database
