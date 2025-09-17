@@ -35,8 +35,10 @@ func main() {
 		fmt.Printf("  - %s (%s): %s\n", table.TableID, table.Type, table.TableName)
 	}
 
+	primary_table_ID := tables[0].TableID
+
 	// Get the root node for the primary table
-	root, err := client.GetRoot("primary")
+	root, err := client.GetRoot(primary_table_ID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,7 +46,7 @@ func main() {
 	fmt.Printf("Root node: %s (%s) at %s\n", root.Name, root.Type, root.Path)
 
 	// List items in the root folder
-	items, err := client.ListItems("primary", root.ID, false)
+	items, err := client.ListItems(primary_table_ID, root.ID, false)
 	if err != nil {
 		log.Fatal(err)
 	}
