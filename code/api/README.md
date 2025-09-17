@@ -61,6 +61,7 @@ The server reads configuration from the same JSON file used by the seeder. The n
 {
   "database": {
     "path": "GhostFS.db",
+    "GenerateIfNotExists": true,
     "tables": {
       "primary": {
         "table_name": "nodes",

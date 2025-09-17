@@ -7,8 +7,8 @@ A simple, easy-to-use SDK for ByteWave and other applications to interact with G
 ```go
 import "github.com/Voltaic314/GhostFS/code/sdk"
 
-// Auto-discover database and config
-client, err := sdk.NewGhostFSClient()
+// Initialize with config file
+client, err := sdk.NewGhostFSClient("config.json")
 if err != nil {
     log.Fatal(err)
 }
@@ -27,24 +27,22 @@ for _, item := range items {
 
 ## Initialization
 
-### Auto-Discovery (Recommended)
+### With Config File (Recommended)
 ```go
-client, err := sdk.NewGhostFSClient()
+client, err := sdk.NewGhostFSClient("config.json")
 ```
-- Automatically finds `GhostFS.db` in the project root (2 levels up from `code/sdk/`)
-- Automatically finds `config.json` in the project root (2 levels up from `code/sdk/`)
-- Fails if database doesn't exist (safe default)
+- Uses the specified config file
+- Database path is determined from config (or current directory if not specified)
+- If database doesn't exist and `generate_if_not_exists` is true, creates a new one
 - Perfect for ByteWave integration
-- **Note**: Files are found relative to the package location, not your current working directory
 
-### Auto-Discovery with Database Generation
+### Auto-Discovery with Default Config
 ```go
-client, err := sdk.NewGhostFSClient(true)
+client, err := sdk.NewGhostFSClient("")
 ```
-- Automatically finds `GhostFS.db` in the project root (2 levels up from `code/sdk/`)
-- **If no database exists, creates a new one with root folders**
-- Automatically finds `config.json` in the project root (2 levels up from `code/sdk/`)
-- ⚠️ **Use with caution** - this will create a new database if none exists
+- Looks for `config.json` in current directory
+- Database path is determined from config (or current directory if not specified)
+- If database doesn't exist and `generate_if_not_exists` is true, creates a new one
 
 ### Custom Database Path
 ```go
@@ -109,9 +107,45 @@ if err != nil {
 
 See `example_usage.go` for a complete working example.
 
+## Configuration
+
+The SDK uses a simplified config file format. Create a `config.json` file:
+
+```json
+{
+  "database": {
+    "path": "GhostFS.db",
+    "generate_if_not_exists": true,
+    "tables": {
+      "primary": {
+        "table_name": "src_nodes",
+        "seed": 12345,
+        "min_child_folders": 2,
+        "max_child_folders": 5,
+        "min_child_files": 3,
+        "max_child_files": 8,
+        "min_depth": 1,
+        "max_depth": 10
+      },
+      "secondary": {
+        "dst_0": {
+          "table_name": "dst_nodes",
+          "dst_prob": 0.7
+        }
+      }
+    }
+  }
+}
+```
+
+### Config Fields
+
+- `database.path`: Path to database file (optional, defaults to current directory)
+- `database.generate_if_not_exists`: Whether to create database if it doesn't exist
+- `database.tables.primary`: Primary table configuration (required)
+- `database.tables.secondary`: Secondary table configurations (optional)
+
 ## Requirements
 
-- GhostFS database file (`GhostFS.db`)
 - Configuration file (`config.json`)
-- Both files should be in the project root directory (2 levels up from `code/sdk/`)
-- The SDK will automatically find these files relative to the package location, not your current working directory
+- Database file (created automatically if `generate_if_not_exists` is true)

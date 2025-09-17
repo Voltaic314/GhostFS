@@ -8,17 +8,17 @@ import (
 )
 
 func main() {
-	// Option 1: Simple initialization - auto-discovers GhostFS.db and config.json
-	// Fails if database doesn't exist (safe default)
-	client, err := sdk.NewGhostFSClient()
+	// Option 1: Simple initialization with config file
+	// Uses sdk_config.json in examples directory
+	client, err := sdk.NewGhostFSClient("sdk_config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer client.Close()
 
-	// Option 2: Auto-discovery with database generation
-	// Uncomment the lines below to enable auto-generation of database
-	// client, err := sdk.NewGhostFSClient(true)
+	// Option 2: Auto-discovery with default config
+	// Uncomment the lines below to use default config discovery
+	// client, err := sdk.NewGhostFSClient("")
 	// if err != nil {
 	//     log.Fatal(err)
 	// }

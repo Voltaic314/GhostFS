@@ -1,6 +1,7 @@
 {
   "database": {
     "path": "GhostFS.db",
+    "GenerateIfNotExists": true,
     "tables": {
       "primary": {
         "table_name": "nodes",

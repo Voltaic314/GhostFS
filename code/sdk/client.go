@@ -1,6 +1,7 @@
 package sdk
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,6 +16,24 @@ import (
 	dbTypes "github.com/Voltaic314/GhostFS/code/types/db"
 )
 
+// SDKConfig represents the configuration for the SDK
+type SDKConfig struct {
+	Database SDKDatabaseConfig `json:"database"`
+}
+
+// SDKDatabaseConfig represents the database configuration for the SDK
+type SDKDatabaseConfig struct {
+	Path                string          `json:"path,omitempty"`         // Optional: path to database file
+	GenerateIfNotExists bool            `json:"generate_if_not_exists"` // Whether to generate database if it doesn't exist
+	Tables              SDKTablesConfig `json:"tables"`
+}
+
+// SDKTablesConfig represents the tables configuration for the SDK
+type SDKTablesConfig struct {
+	Primary   tables.PrimaryTableConfig              `json:"primary"`
+	Secondary map[string]tables.SecondaryTableConfig `json:"secondary,omitempty"`
+}
+
 // GhostFSClient provides a clean SDK interface for ByteWave to use
 type GhostFSClient struct {
 	tableManager *tables.TableManager
@@ -22,33 +41,36 @@ type GhostFSClient struct {
 	generator    *tables.DeterministicGenerator
 }
 
-// NewGhostFSClient creates a new SDK client with auto-discovery
-// It will look for GhostFS.db in the current directory and parent directories
-// Options:
-//   - generateDB: if true, creates a new database with root folders if none exists
-func NewGhostFSClient(options ...bool) (*GhostFSClient, error) {
-	generateDB := false
-	if len(options) > 0 {
-		generateDB = options[0]
+// NewGhostFSClient creates a new SDK client with config file
+// It will look for config.json in the current directory and parent directories
+func NewGhostFSClient(configPath string) (*GhostFSClient, error) {
+	// Load SDK config
+	config, err := loadSDKConfig(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Try to find existing database file
-	dbPath, err := findDatabaseFile()
-	if err != nil {
-		if !generateDB {
-			return nil, fmt.Errorf("failed to find database file: %w", err)
+	// Determine database path
+	dbPath := config.Database.Path
+	if dbPath == "" {
+		// No path specified, use current working directory
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get current working directory: %w", err)
+		}
+		dbPath = filepath.Join(cwd, "GhostFS.db")
+	}
+
+	// Check if database exists
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		if !config.Database.GenerateIfNotExists {
+			return nil, fmt.Errorf("database file does not exist at %s and generate_if_not_exists is false", dbPath)
 		}
 
 		// Generate a new database with root folders using existing init_db function
 		fmt.Println("🗑️  No existing database found, generating new one...")
-		seed.InitDB("") // Use default config.json path
+		seed.InitDB(configPath) // Use the existing init_db function
 		fmt.Println("✅ Database generated successfully!")
-
-		// Now find the database file that was just created
-		dbPath, err = findDatabaseFile()
-		if err != nil {
-			return nil, fmt.Errorf("failed to find generated database file: %w", err)
-		}
 	}
 
 	return NewGhostFSClientWithDB(dbPath)
@@ -113,41 +135,35 @@ func NewGhostFSClientWithDB(dbPath string) (*GhostFSClient, error) {
 	}, nil
 }
 
-// findDatabaseFile searches for GhostFS.db relative to the package location
-func findDatabaseFile() (string, error) {
-	// Get the directory of the current file (this SDK package)
-	_, currentFile, _, ok := runtime.Caller(0)
-	if !ok {
-		return "", fmt.Errorf("failed to get current file path")
+// loadSDKConfig loads the SDK configuration from a config file
+func loadSDKConfig(configPath string) (*SDKConfig, error) {
+	// If no config path provided, look for config.json in current directory
+	if configPath == "" {
+		configPath = "config.json"
 	}
 
-	// Start from the directory containing this SDK file (code/sdk/)
-	packageDir := filepath.Dir(currentFile)
+	// Check if config file exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("config file not found: %s", configPath)
+	}
 
-	// The GhostFS.db should be 2 levels up from code/sdk/ (at the project root)
-	// code/sdk/ -> code/ -> project root
-	projectRoot := filepath.Join(packageDir, "..", "..")
-	projectRoot, err := filepath.Abs(projectRoot)
+	// Read and parse config file
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to get absolute path to project root: %w", err)
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// Look for GhostFS.db in the project root
-	dbPath := filepath.Join(projectRoot, "GhostFS.db")
-	if _, err := os.Stat(dbPath); err == nil {
-		return dbPath, nil
+	var config SDKConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 
-	// Fallback: try current working directory
-	currentDir, err := os.Getwd()
-	if err == nil {
-		dbPath := filepath.Join(currentDir, "GhostFS.db")
-		if _, err := os.Stat(dbPath); err == nil {
-			return dbPath, nil
-		}
+	// Validate required fields
+	if config.Database.Tables.Primary.TableName == "" {
+		return nil, fmt.Errorf("config must have database.tables.primary.table_name")
 	}
 
-	return "", fmt.Errorf("GhostFS.db not found in project root (%s) or current directory", projectRoot)
+	return &config, nil
 }
 
 // loadConfig loads the configuration from config.json

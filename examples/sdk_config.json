@@ -1,0 +1,24 @@
+{
+  "database": {
+    "path": "GhostFS.db",
+    "generate_if_not_exists": true,
+    "tables": {
+      "primary": {
+        "table_name": "src_nodes",
+        "seed": 12345,
+        "min_child_folders": 2,
+        "max_child_folders": 5,
+        "min_child_files": 3,
+        "max_child_files": 8,
+        "min_depth": 1,
+        "max_depth": 10
+      },
+      "secondary": {
+        "dst_0": {
+          "table_name": "dst_nodes",
+          "dst_prob": 0.7
+        }
+      }
+    }
+  }
+}
