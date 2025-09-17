@@ -233,7 +233,7 @@ func findConfigFile() (string, error) {
 
 // getMasterSeed retrieves the master seed from the database
 func getMasterSeed(database *db.DB) (int64, error) {
-	query := "SELECT seed FROM seed_info LIMIT 1"
+	query := "SELECT seed_value FROM seed_info LIMIT 1"
 	var seed int64
 	err := database.QueryRow(query).Scan(&seed)
 	if err != nil {

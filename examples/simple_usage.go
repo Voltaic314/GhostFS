@@ -10,7 +10,7 @@ import (
 func main() {
 	// Option 1: Simple initialization with config file
 	// Uses sdk_config.json in examples directory
-	client, err := sdk.NewGhostFSClient("sdk_config.json")
+	client, err := sdk.NewGhostFSClient("examples/sdk_config.json")
 	if err != nil {
 		log.Fatal(err)
 	}
