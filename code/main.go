@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
-	// seed.Seed()
-	api.StartServer()
+	cfgPath := "config.json"
+	// seed.InitDB(cfgPath)
+	api.StartServer(cfgPath)
 }

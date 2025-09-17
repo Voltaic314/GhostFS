@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -21,11 +20,12 @@ import (
 
 // GhostFSServer represents the GhostFS HTTP server
 type GhostFSServer struct {
-	router       *chi.Mux
-	db           *db.DB
-	config       *tables.TestConfig
-	tableManager *tables.TableManager
-	server       *http.Server
+	router                 *chi.Mux
+	db                     *db.DB
+	config                 *tables.TestConfig
+	tableManager           *tables.TableManager
+	deterministicGenerator *tables.DeterministicGenerator
+	server                 *http.Server
 }
 
 // NewGhostFSServer creates a new GhostFS server instance
@@ -52,14 +52,45 @@ func NewGhostFSServer(configPath string) (*GhostFSServer, error) {
 	// Initialize table IDs
 	tableManager.InitializeTableIDs()
 
+	// Get master seed from config or database
+	masterSeed := cfg.Database.Tables.Primary.Seed
+	if masterSeed == 0 {
+		// Try to get seed from database
+		if seedValue, _, _, err := tables.GetSeedInfo(database); err == nil {
+			masterSeed = seedValue
+		} else {
+			// Use a default seed if none found
+			masterSeed = 12345
+		}
+	}
+
+	// Create deterministic generator
+	generator := tables.NewDeterministicGenerator(
+		database,
+		cfg.Database.Tables.Primary,
+		cfg.Database.Tables.Secondary,
+		masterSeed,
+		tableManager,
+	)
+
+	// Load existing seeds from all tables into memory
+	tableNames := tableManager.GetTableNames()
+	for _, tableName := range tableNames {
+		if err := generator.LoadSeedsFromDatabase(tableName); err != nil {
+			// Log warning but don't fail startup - this is for performance optimization
+			fmt.Printf("⚠️  Warning: Could not load seeds from table %s: %v\n", tableName, err)
+		}
+	}
+
 	// Create router
 	router := chi.NewRouter()
 
 	server := &GhostFSServer{
-		router:       router,
-		db:           database,
-		config:       cfg,
-		tableManager: tableManager,
+		router:                 router,
+		db:                     database,
+		config:                 cfg,
+		tableManager:           tableManager,
+		deterministicGenerator: generator,
 	}
 
 	// Setup routes with server instance
@@ -98,6 +129,11 @@ func (s *GhostFSServer) GetDB() *db.DB {
 	return s.db
 }
 
+// GetDeterministicGenerator returns the deterministic generator instance
+func (s *GhostFSServer) GetDeterministicGenerator() *tables.DeterministicGenerator {
+	return s.deterministicGenerator
+}
+
 // loadConfig loads the GhostFS configuration
 func loadConfig(path string) (*tables.TestConfig, error) {
 	data, err := os.ReadFile(path)
@@ -113,11 +149,7 @@ func loadConfig(path string) (*tables.TestConfig, error) {
 	return &cfg, nil
 }
 
-func StartServer() {
-	var configPath string
-	flag.StringVar(&configPath, "config", "config.json", "Path to GhostFS configuration file")
-	flag.Parse()
-
+func StartServer(configPath string) {
 	// Create GhostFS server
 	server, err := NewGhostFSServer(configPath)
 	if err != nil {

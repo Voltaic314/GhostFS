@@ -500,8 +500,3 @@ func buildPath(parentPath, name string) string {
 	}
 	return parentPath + "/" + name
 }
-
-func fatalf(f string, a ...any) {
-	fmt.Printf("❌ "+f+"\n", a...)
-	os.Exit(1)
-}

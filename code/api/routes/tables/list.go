@@ -3,6 +3,7 @@ package tables
 import (
 	"net/http"
 
+	coreTables "github.com/Voltaic314/GhostFS/code/core/tables"
 	"github.com/Voltaic314/GhostFS/code/db"
 	"github.com/Voltaic314/GhostFS/code/db/tables"
 	"github.com/Voltaic314/GhostFS/code/types/api"
@@ -24,23 +25,14 @@ func HandleListTables(w http.ResponseWriter, r *http.Request, serverInterface in
 
 	database := server.GetDB()
 
-	// Get all table mappings with types from the database
-	tableMappingsWithTypes, err := tables.GetAllTableMappingsWithTypes(database)
+	// Call core logic
+	coreResp, err := coreTables.ListTables(database)
 	if err != nil {
-		api.InternalError(w, "Failed to retrieve table mappings from database")
+		api.InternalError(w, err.Error())
 		return
 	}
 
-	var tableList []dbTypes.TableInfo
-	for tableID, info := range tableMappingsWithTypes {
-		tableList = append(tableList, dbTypes.TableInfo{
-			TableID:   tableID,
-			TableName: info["table_name"],
-			Type:      info["type"],
-		})
-	}
-
-	// Return successful response
-	responseData := ListTablesResponseData{Tables: tableList}
+	// Convert core response to API response
+	responseData := ListTablesResponseData{Tables: coreResp.Tables}
 	api.Success(w, responseData)
 }

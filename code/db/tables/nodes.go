@@ -31,6 +31,7 @@ func (t *NodesTable) Schema() string {
 		level INTEGER NOT NULL,
 		checked BOOLEAN NOT NULL DEFAULT FALSE,
 		secondary_existence_map JSON,
+		child_seed BIGINT,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	`

@@ -113,7 +113,7 @@ func (db *DB) QueueWrite(tableName, query string, params ...any) {
 		})
 		// Only flush if we hit the batch size threshold or timer
 		// Don't force flush on every write
-		wq.Flush()
+		db.flushWriteQueue(wq, tableName, false)
 	}
 }
 
@@ -127,7 +127,7 @@ func (db *DB) QueueWriteWithPath(tableName, path, query string, params ...any) {
 			OpType: "update",
 		})
 		// Only flush if we hit the batch size threshold or timer
-		wq.Flush()
+		db.flushWriteQueue(wq, tableName, false)
 	}
 }
 

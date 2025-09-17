@@ -2,9 +2,9 @@ package items
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
+	"github.com/Voltaic314/GhostFS/code/core/items"
 	"github.com/Voltaic314/GhostFS/code/db"
 	"github.com/Voltaic314/GhostFS/code/db/tables"
 	"github.com/Voltaic314/GhostFS/code/types/api"
@@ -37,43 +37,19 @@ func HandleGetRoot(w http.ResponseWriter, r *http.Request, server interface{}) {
 	tableManager := s.GetTableManager()
 	database := s.GetDB()
 
-	// Get table name from table ID (check cache first)
-	tableName, exists := tableManager.GetTableNameByID(req.TableID)
-	if !exists {
-		// Not in cache, try to load from lookup table
-		var err error
-		tableName, err = tables.GetTableName(database, req.TableID)
-		if err != nil {
-			api.BadRequest(w, fmt.Sprintf("Invalid table_id: %s", req.TableID))
-			return
-		}
+	// Convert API request to core request
+	coreReq := items.GetRootRequest{
+		TableID: req.TableID,
 	}
 
-	// Build SQL query to get the root node (level = 0)
-	query := fmt.Sprintf("SELECT id, name, path, type, size, level, checked FROM %s WHERE level = 0 LIMIT 1", tableName)
-
-	// Execute query
-	rows, err := database.Query(tableName, query)
+	// Call core logic
+	coreResp, err := items.GetRoot(tableManager, database, coreReq)
 	if err != nil {
-		api.InternalError(w, fmt.Sprintf("Database query failed: %v", err))
-		return
-	}
-	defer rows.Close()
-
-	// Parse result - should only be one root node
-	var rootNode dbTypes.Node
-	if rows.Next() {
-		err := rows.Scan(&rootNode.ID, &rootNode.Name, &rootNode.Path, &rootNode.Type, &rootNode.Size, &rootNode.Level, &rootNode.Checked)
-		if err != nil {
-			api.InternalError(w, fmt.Sprintf("Failed to parse database results: %v", err))
-			return
-		}
-	} else {
-		api.NotFound(w, "Root node not found for this table")
+		api.InternalError(w, err.Error())
 		return
 	}
 
-	// Return successful response
-	responseData := GetRootResponseData{Root: rootNode}
+	// Convert core response to API response
+	responseData := GetRootResponseData{Root: coreResp.Root}
 	api.Success(w, responseData)
 }

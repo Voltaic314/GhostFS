@@ -2,9 +2,9 @@ package items
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
+	"github.com/Voltaic314/GhostFS/code/core/items"
 	"github.com/Voltaic314/GhostFS/code/db"
 	"github.com/Voltaic314/GhostFS/code/db/tables"
 	"github.com/Voltaic314/GhostFS/code/types/api"
@@ -34,60 +34,28 @@ func HandleList(w http.ResponseWriter, r *http.Request, server interface{}) {
 	s := server.(interface {
 		GetTableManager() *tables.TableManager
 		GetDB() *db.DB
+		GetDeterministicGenerator() *tables.DeterministicGenerator
 	})
 
 	tableManager := s.GetTableManager()
 	database := s.GetDB()
+	generator := s.GetDeterministicGenerator()
 
-	// Get table name from table ID (check cache first)
-	tableName, exists := tableManager.GetTableNameByID(req.TableID)
-	if !exists {
-		// Not in cache, try to load from lookup table
-		var err error
-		tableName, err = tables.GetTableName(database, req.TableID)
-		if err != nil {
-			api.BadRequest(w, fmt.Sprintf("Invalid table_id: %s", req.TableID))
-			return
-		}
+	// Convert API request to core request
+	coreReq := items.ListItemsRequest{
+		TableID:     req.TableID,
+		FolderID:    req.FolderID,
+		FoldersOnly: req.FoldersOnly,
 	}
 
-	// Build SQL query to get children of the specified folder
-	query := fmt.Sprintf("SELECT id, name, path, type, size, level, checked FROM %s WHERE parent_id = ?", tableName)
-
-	// Add folders_only filter if requested
-	if req.FoldersOnly {
-		query += " AND type = 'folder'"
-	}
-
-	// Order by type (folders first) then by name
-	query += " ORDER BY type DESC, name ASC"
-
-	// Execute query
-	rows, err := database.Query(tableName, query, req.FolderID)
+	// Call core logic
+	coreResp, err := items.ListItems(tableManager, database, generator, coreReq)
 	if err != nil {
-		api.InternalError(w, fmt.Sprintf("Database query failed: %v", err))
+		api.InternalError(w, err.Error())
 		return
 	}
-	defer rows.Close()
 
-	// Parse results
-	var items []dbTypes.Node
-	for rows.Next() {
-		var item dbTypes.Node
-		err := rows.Scan(&item.ID, &item.Name, &item.Path, &item.Type, &item.Size, &item.Level, &item.Checked)
-		if err != nil {
-			api.InternalError(w, fmt.Sprintf("Failed to parse database results: %v", err))
-			return
-		}
-		items = append(items, item)
-	}
-
-	// Queue an update to mark the parent folder as "checked" (accessed)
-	// This tracks which folders have been listed/accessed without impacting performance
-	updateQuery := fmt.Sprintf("UPDATE %s SET checked = TRUE WHERE id = ?", tableName)
-	database.QueueWrite(tableName, updateQuery, req.FolderID)
-
-	// Return successful response
-	responseData := ListResponseData{Items: items}
+	// Convert core response to API response
+	responseData := ListResponseData{Items: coreResp.Items}
 	api.Success(w, responseData)
 }

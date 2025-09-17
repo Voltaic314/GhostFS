@@ -13,6 +13,7 @@ type Node struct {
 	Level                 int       `json:"level" db:"level"`
 	Checked               bool      `json:"checked" db:"checked"`
 	SecondaryExistenceMap string    `json:"secondary_existence_map,omitempty" db:"secondary_existence_map"` // JSON string
+	ChildSeed             *int64    `json:"child_seed,omitempty" db:"child_seed"`                           // Optional child generation seed
 	CreatedAt             time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at" db:"updated_at"`
 }

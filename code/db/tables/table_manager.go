@@ -1,7 +1,9 @@
 package tables
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Voltaic314/GhostFS/code/db"
@@ -277,4 +279,19 @@ func (tm *TableManager) SaveTableMappingsToDB(db *db.DB) error {
 	}
 
 	return nil
+}
+
+// LoadConfig loads configuration from a JSON file
+func LoadConfig(configPath string) (*TestConfig, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var config TestConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	return &config, nil
 }
