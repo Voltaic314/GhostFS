@@ -31,18 +31,19 @@ for _, item := range items {
 ```go
 client, err := sdk.NewGhostFSClient()
 ```
-- Automatically finds `GhostFS.db` in current directory or parent directories
-- Automatically finds `config.json` in current directory or parent directories
+- Automatically finds `GhostFS.db` relative to the GhostFS package location
+- Automatically finds `config.json` relative to the GhostFS package location
 - Fails if database doesn't exist (safe default)
 - Perfect for ByteWave integration
+- **Note**: Files are found relative to the package, not your current working directory
 
 ### Auto-Discovery with Database Generation
 ```go
 client, err := sdk.NewGhostFSClient(true)
 ```
-- Automatically finds `GhostFS.db` in current directory or parent directories
+- Automatically finds `GhostFS.db` relative to the GhostFS package location
 - **If no database exists, creates a new one with root folders**
-- Automatically finds `config.json` in current directory or parent directories
+- Automatically finds `config.json` relative to the GhostFS package location
 - ⚠️ **Use with caution** - this will create a new database if none exists
 
 ### Custom Database Path
@@ -112,4 +113,5 @@ See `example_usage.go` for a complete working example.
 
 - GhostFS database file (`GhostFS.db`)
 - Configuration file (`config.json`)
-- Both files should be in the current directory or a parent directory
+- Both files should be in the same directory as the GhostFS package or a parent directory
+- The SDK will automatically find these files relative to the package location, not your current working directory

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/Voltaic314/GhostFS/code/core/items"
@@ -112,32 +113,33 @@ func NewGhostFSClientWithDB(dbPath string) (*GhostFSClient, error) {
 	}, nil
 }
 
-// findDatabaseFile searches for GhostFS.db in current directory and parent directories
+// findDatabaseFile searches for GhostFS.db relative to the config file location
 func findDatabaseFile() (string, error) {
-	// Start from current directory
-	currentDir, err := os.Getwd()
+	// First, find the config file to get the base directory
+	configPath, err := findConfigFile()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to find config file: %w", err)
 	}
 
-	// Search up the directory tree
-	dir := currentDir
-	for {
-		dbPath := filepath.Join(dir, "GhostFS.db")
+	// Get the directory containing the config file
+	configDir := filepath.Dir(configPath)
+
+	// Look for GhostFS.db in the same directory as config.json
+	dbPath := filepath.Join(configDir, "GhostFS.db")
+	if _, err := os.Stat(dbPath); err == nil {
+		return dbPath, nil
+	}
+
+	// If not found in config directory, try current working directory as fallback
+	currentDir, err := os.Getwd()
+	if err == nil {
+		dbPath := filepath.Join(currentDir, "GhostFS.db")
 		if _, err := os.Stat(dbPath); err == nil {
 			return dbPath, nil
 		}
-
-		// Move up one directory
-		parentDir := filepath.Dir(dir)
-		if parentDir == dir {
-			// Reached root directory
-			break
-		}
-		dir = parentDir
 	}
 
-	return "", fmt.Errorf("GhostFS.db not found in current directory or parent directories")
+	return "", fmt.Errorf("GhostFS.db not found in config directory (%s) or current directory", configDir)
 }
 
 // loadConfig loads the configuration from config.json
@@ -151,16 +153,19 @@ func loadConfig() (*tables.TestConfig, error) {
 	return tables.LoadConfig(configPath)
 }
 
-// findConfigFile searches for config.json in current directory and parent directories
+// findConfigFile searches for config.json relative to the package location
 func findConfigFile() (string, error) {
-	// Start from current directory
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return "", err
+	// Get the directory of the current file (this SDK package)
+	_, currentFile, _, ok := runtime.Caller(0)
+	if !ok {
+		return "", fmt.Errorf("failed to get current file path")
 	}
 
-	// Search up the directory tree
-	dir := currentDir
+	// Start from the directory containing this SDK file
+	packageDir := filepath.Dir(currentFile)
+
+	// Search up the directory tree from the package location
+	dir := packageDir
 	for {
 		configPath := filepath.Join(dir, "config.json")
 		if _, err := os.Stat(configPath); err == nil {
@@ -176,7 +181,16 @@ func findConfigFile() (string, error) {
 		dir = parentDir
 	}
 
-	return "", fmt.Errorf("config.json not found in current directory or parent directories")
+	// Fallback: try current working directory
+	currentDir, err := os.Getwd()
+	if err == nil {
+		configPath := filepath.Join(currentDir, "config.json")
+		if _, err := os.Stat(configPath); err == nil {
+			return configPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("config.json not found relative to package location or current directory")
 }
 
 // getMasterSeed retrieves the master seed from the database
