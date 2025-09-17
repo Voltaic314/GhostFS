@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/Voltaic314/GhostFS/code/db"
 	dbTypes "github.com/Voltaic314/GhostFS/code/types/db"
@@ -138,6 +139,8 @@ func (dg *DeterministicGenerator) GenerateChildren(folderID string, folderPath s
 			Size:     0,
 			Level:    level + 1,
 			Checked:  false,
+			UpdatedAt: time.Now(),
+			CreatedAt: time.Now(),
 		}
 		children = append(children, folderChild)
 	}
@@ -306,7 +309,7 @@ func (dg *DeterministicGenerator) storeChildrenWithSeeds(children []dbTypes.Node
 		}
 
 		// Insert child into primary table with seed
-		primaryQuery := fmt.Sprintf("INSERT INTO %s (id, parent_id, name, path, type, size, level, checked, secondary_existence_map, child_seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", tableName)
+		primaryQuery := fmt.Sprintf("INSERT OR IGNORE INTO %s (id, parent_id, name, path, type, size, level, checked, secondary_existence_map, child_seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", tableName)
 		dg.db.QueueWrite(tableName, primaryQuery, child.ID, child.ParentID, child.Name, child.Path, child.Type, child.Size, child.Level, child.Checked, existenceMapJSON, childSeed)
 
 		// Cache the child's existence map and seed
@@ -320,7 +323,7 @@ func (dg *DeterministicGenerator) storeChildrenWithSeeds(children []dbTypes.Node
 		// Insert into secondary tables where it should exist
 		for _, secondaryTableName := range secondaryTableNames {
 			if childExistenceMap[secondaryTableName] {
-				secondaryQuery := fmt.Sprintf("INSERT INTO %s (id, parent_id, name, path, type, size, level, checked, child_seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", secondaryTableName)
+				secondaryQuery := fmt.Sprintf("INSERT OR IGNORE INTO %s (id, parent_id, name, path, type, size, level, checked, child_seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", secondaryTableName)
 				dg.db.QueueWrite(secondaryTableName, secondaryQuery, child.ID, child.ParentID, child.Name, child.Path, child.Type, child.Size, child.Level, child.Checked, childSeed)
 			}
 		}

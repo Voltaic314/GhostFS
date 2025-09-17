@@ -43,7 +43,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Root node: %s (%s) at %s\n", root.Name, root.Type, root.Path)
+	fmt.Printf("Root node:\n")
+	fmt.Printf("  ID:        %s\n", root.ID)
+	fmt.Printf("  Name:      %s\n", root.Name)
+	fmt.Printf("  Type:      %s\n", root.Type)
+	fmt.Printf("  Path:      %s\n", root.Path)
+	fmt.Printf("  ParentID:  %s\n", root.ParentID)
+	fmt.Printf("  Size:      %d\n", root.Size)
+	fmt.Printf("  Level:     %d\n", root.Level)
+	fmt.Printf("  Checked:   %v\n", root.Checked)
+	fmt.Printf("  CreatedAt: %v\n", root.CreatedAt)
+	fmt.Printf("  UpdatedAt: %v\n", root.UpdatedAt)
 
 	// List items in the root folder
 	items, err := client.ListItems(primary_table_ID, root.ID, false)
