@@ -131,14 +131,14 @@ func (dg *DeterministicGenerator) GenerateChildren(folderID string, folderPath s
 	numFolders := dg.config.MinChildFolders + rng.Intn(dg.config.MaxChildFolders-dg.config.MinChildFolders+1)
 	for i := 0; i < numFolders; i++ {
 		folderChild := dbTypes.Node{
-			ID:       generateDeterministicUUID(childSeed, fmt.Sprintf("folder_%d", i)),
-			ParentID: folderID,
-			Name:     fmt.Sprintf("folder_%d", i),
-			Path:     buildPath(folderPath, fmt.Sprintf("folder_%d", i)),
-			Type:     "folder",
-			Size:     0,
-			Level:    level + 1,
-			Checked:  false,
+			ID:        generateDeterministicUUID(childSeed, fmt.Sprintf("folder_%d", i)),
+			ParentID:  folderID,
+			Name:      fmt.Sprintf("folder_%d", i),
+			Path:      buildPath(folderPath, fmt.Sprintf("folder_%d", i)),
+			Type:      "folder",
+			Size:      0,
+			Level:     level + 1,
+			Checked:   false,
 			UpdatedAt: time.Now(),
 			CreatedAt: time.Now(),
 		}
@@ -151,14 +151,16 @@ func (dg *DeterministicGenerator) GenerateChildren(folderID string, folderPath s
 		for i := 0; i < numFiles; i++ {
 			fileSize := int64(100 + rng.Intn(900)) // Random size 100-999 bytes
 			fileChild := dbTypes.Node{
-				ID:       generateDeterministicUUID(childSeed, fmt.Sprintf("file_%d.txt", i)),
-				ParentID: folderID,
-				Name:     fmt.Sprintf("file_%d.txt", i),
-				Path:     buildPath(folderPath, fmt.Sprintf("file_%d.txt", i)),
-				Type:     "file",
-				Size:     fileSize,
-				Level:    level + 1,
-				Checked:  false,
+				ID:        generateDeterministicUUID(childSeed, fmt.Sprintf("file_%d.txt", i)),
+				ParentID:  folderID,
+				Name:      fmt.Sprintf("file_%d.txt", i),
+				Path:      buildPath(folderPath, fmt.Sprintf("file_%d.txt", i)),
+				Type:      "file",
+				Size:      fileSize,
+				Level:     level + 1,
+				Checked:   false,
+				UpdatedAt: time.Now(),
+				CreatedAt: time.Now(),
 			}
 			children = append(children, fileChild)
 		}
@@ -309,8 +311,8 @@ func (dg *DeterministicGenerator) storeChildrenWithSeeds(children []dbTypes.Node
 		}
 
 		// Insert child into primary table with seed
-		primaryQuery := fmt.Sprintf("INSERT OR IGNORE INTO %s (id, parent_id, name, path, type, size, level, checked, secondary_existence_map, child_seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", tableName)
-		dg.db.QueueWrite(tableName, primaryQuery, child.ID, child.ParentID, child.Name, child.Path, child.Type, child.Size, child.Level, child.Checked, existenceMapJSON, childSeed)
+		primaryQuery := fmt.Sprintf("INSERT OR IGNORE INTO %s (id, parent_id, name, path, type, size, level, checked, secondary_existence_map, child_seed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", tableName)
+		dg.db.QueueWrite(tableName, primaryQuery, child.ID, child.ParentID, child.Name, child.Path, child.Type, child.Size, child.Level, child.Checked, existenceMapJSON, childSeed, child.CreatedAt, child.UpdatedAt)
 
 		// Cache the child's existence map and seed
 		dg.cacheMutex.Lock()
@@ -323,8 +325,8 @@ func (dg *DeterministicGenerator) storeChildrenWithSeeds(children []dbTypes.Node
 		// Insert into secondary tables where it should exist
 		for _, secondaryTableName := range secondaryTableNames {
 			if childExistenceMap[secondaryTableName] {
-				secondaryQuery := fmt.Sprintf("INSERT OR IGNORE INTO %s (id, parent_id, name, path, type, size, level, checked, child_seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", secondaryTableName)
-				dg.db.QueueWrite(secondaryTableName, secondaryQuery, child.ID, child.ParentID, child.Name, child.Path, child.Type, child.Size, child.Level, child.Checked, childSeed)
+				secondaryQuery := fmt.Sprintf("INSERT OR IGNORE INTO %s (id, parent_id, name, path, type, size, level, checked, child_seed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", secondaryTableName)
+				dg.db.QueueWrite(secondaryTableName, secondaryQuery, child.ID, child.ParentID, child.Name, child.Path, child.Type, child.Size, child.Level, child.Checked, childSeed, child.CreatedAt, child.UpdatedAt)
 			}
 		}
 	}
